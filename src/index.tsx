@@ -85,7 +85,7 @@ export interface FastImageProps extends AccessibilityProps, ViewProps {
     defaultSource?: ImageRequireSource
     resizeMode?: ResizeMode
     fallback?: boolean
-
+    filterNearest?: boolean
     onLoadStart?(): void
 
     onProgress?(event: OnProgressEvent): void
