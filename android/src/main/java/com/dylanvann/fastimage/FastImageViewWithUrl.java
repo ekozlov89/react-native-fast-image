@@ -4,21 +4,54 @@ import static com.dylanvann.fastimage.FastImageRequestListener.REACT_ON_ERROR_EV
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.os.ParcelFileDescriptor;
+import android.util.Base64;
+import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
 
+import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.Transformation;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.engine.Resource;
+import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool;
 import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.resource.bitmap.BitmapResource;
+import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
 import com.bumptech.glide.request.Request;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.target.SimpleTarget;
+import com.bumptech.glide.request.target.SizeReadyCallback;
+import com.bumptech.glide.request.target.Target;
+import com.bumptech.glide.request.transition.Transition;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
+import java.io.FileDescriptor;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,11 +63,12 @@ class FastImageViewWithUrl extends AppCompatImageView {
     private boolean mNeedsReload = false;
     private ReadableMap mSource = null;
     private Drawable mDefaultSource = null;
-
     public GlideUrl glideUrl;
+    private Boolean isNearestFilter=false;
 
     public FastImageViewWithUrl(Context context) {
         super(context);
+
     }
 
     public void setSource(@Nullable ReadableMap source) {
@@ -42,9 +76,15 @@ class FastImageViewWithUrl extends AppCompatImageView {
         mSource = source;
     }
 
+
     public void setDefaultSource(@Nullable Drawable source) {
         mNeedsReload = true;
         mDefaultSource = source;
+    }
+
+    public void setFilterNearest(Boolean isNearest) {
+        isNearestFilter = isNearest;
+
     }
 
     private boolean isNullOrEmpty(final String url) {
@@ -130,7 +170,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         }
 
         if (requestManager != null) {
-            RequestBuilder<Drawable> builder =
+            RequestBuilder<Drawable>  builder =
                     requestManager
                             // This will make this work for remote and local images. e.g.
                             //    - file:///
@@ -142,12 +182,34 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             .apply(FastImageViewConverter
                                     .getOptions(context, imageSource, mSource)
                                     .placeholder(mDefaultSource) // show until loaded
-                                    .fallback(mDefaultSource)); // null will not be treated as error
+                                    .fallback(mDefaultSource)
+                            ); // null will not be treated as error
 
-            if (key != null)
+            if (key != null) {
                 builder.listener(new FastImageRequestListener(key));
+            }
+            if(isNearestFilter) {
+                builder.into(new CustomTarget<Drawable>() {
+                    @Override
+                    public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+                        if(resource!=null) {
+                            BitmapDrawable drawable = (BitmapDrawable) resource;
+                            drawable.setFilterBitmap(false);
+                            drawable.setAntiAlias(false);
+                            setImageDrawable(drawable);
+                        } else {
+                            Log.i("IMAGE_BITMAP","NULL");
+                        }
+                    }
 
-            builder.into(this);
+                    @Override
+                    public void onLoadCleared(@Nullable Drawable placeholder) {
+
+                    }
+                });
+            } else {
+                builder.into(this);
+            }
         }
     }
 
