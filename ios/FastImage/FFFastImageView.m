@@ -79,22 +79,18 @@
 }
 
 - (UIImage*) makeImage: (UIImage*)image withTint: (UIColor*)color {
-    UIImage* newImage = [image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate];
-    
-    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
-    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:image.size format:format];
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:image.size format: image.imageRendererFormat];
 
     UIImage *resultImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
-        CGRect rect = CGRectMake(0, 0, image.size.width, image.size.height);
         [color set];
-        [newImage drawInRect:rect];
+        [[image imageWithRenderingMode: UIImageRenderingModeAlwaysTemplate] drawInRect:rendererContext.format.bounds];
     }];
 
     return resultImage;
 }
 
 - (void) setImage: (UIImage*)image {
-    if (self.imageColor != nil) {
+    if ((image != nil) && (self.imageColor != nil)) {
         super.image = [self makeImage: image withTint: self.imageColor];
     } else {
         super.image = image;
